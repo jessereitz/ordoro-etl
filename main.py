@@ -6,14 +6,31 @@ API_URL = 'https://us-central1-marcy-playground.cloudfunctions.net/ordoroCodingT
 MY_EMAIL = 'jessereitz1@gmail.com'
 
 def get_data():
+    """
+        Get the JSON data from the designated API endpoint.
+    """
     raw_data = requests.get(API_URL)
     return raw_data.json()['data']
 
-def post_data(raw_dict):
-    json_dump = json.dumps(raw_dict)
+def post_data(cleaned_dict):
+    """
+        Post the cleaned data to the designated endpoint.
+
+        If successful, returns None. If not, an exception is raised.
+    """
+    final_json = json.dumps(cleaned_dict)
     headers = { 'Content-Type': 'application/json' }
-    r = requests.post(API_URL, headers=headers, data=json_dump)
+
+    try:
+        r = requests.post(API_URL, headers=headers, data=final_json)
+    except Exception as e:
+        raise e
+
+    if r.status_code != 200 or not r.json():
+        # check for complete fail or lack of JSON response
+        raise Exception('Post to API failed. JSON response is printed below: \n' + str(r.json()))
     return r
+    return None
 
 def distinct_emails(raw_data):
     """
@@ -85,15 +102,36 @@ def april_logins(raw_data):
     apr_login = []
     for login in raw_data:
         try:
+            # try to get the date, see if it's in April, and save it
             dt = arrow.get(login.get('login_date'))
             if dt.month == 4:
                 apr_login.append(login)
         except:
-            print('uh oh')
+            # if there is no associated date, pass over the login
+            pass
     return distinct_emails(apr_login)
 
 def main():
+    """
+        Gets data, cleans it, and returns it to the API in the format:
+            {
+                "your_email_address": "email@email.com",
+                "unique_emails": ["email1@email.com, email2@email.com"],
+                "user_domain_counts": {
+                    "gmail.com": 2,
+                    "hotmail.com": 15
+                },
+                "april_emails": ["email1@email.com", "email2@email.com"]
+            }
+
+        If successful, exits with 0. Otherwise exits with 1.
+    """
+    print('Requesting JSON data...')
+
     data = get_data()
+
+    print('Data received. Cleaning emails, counting domains, and checking who logged in in April...')
+
     unique_emails = distinct_emails(data)
     cleaned_data = {
         "your_email_address": "jessereitz1@gmail.com",
@@ -101,5 +139,20 @@ def main():
         "user_domain_counts": domain_counts(unique_emails),
         "april_emails": april_logins(data)
     }
-    r = post_data(cleaned_data)
-    return r
+
+    print('Done.')
+    print('Posting data to API...')
+
+    try:
+        r = post_data(cleaned_data)
+        print('Data has been successfully cleaned and resubmitted to API.')
+        return r
+    except Exception as e:
+        print('Something went wrong. See below for more info:')
+        print(e)
+        return 1
+    return 0
+
+
+if __name__ == '__main__':
+    main()
