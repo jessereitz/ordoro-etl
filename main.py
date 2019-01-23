@@ -53,8 +53,44 @@ def in_april(login):
         return False
     return dt.month == 4
 
+def get_domain(email):
+    """
+        Returns the domain from a given email address.
+    """
+    return email.split('@')[-1]
 
-def dist_emails_apr_logins(raw_data):
+def count_domain(email, domains_dict):
+    """
+        Count the number of times we've seen an email domain using the given
+        domains_dict. domains_dict must be a dictionary in the format:
+
+            {
+                "all": set(),
+                "final_count": {}
+            }
+
+        where "all" is a set of all the domains we have seen and "final_count"
+        is a dictionary containing domains we have seen more than once, along
+        with the number of times we have seen it. A set is used for "all"
+        because it is faster at determining membership than a list or dict.
+
+        Return Format:
+            dictionary: Returns the given domains_dict with updated domain
+                counts.
+    """
+    domain = get_domain(email)
+    if domains_dict["final_count"].get(domain):
+        # if domain is already in the final, increment it
+        domains_dict["final_count"][domain] += 1
+    elif domain in domains_dict["all"]:
+        # if second time seeing the domain, record it as such in final_count
+        domains_dict["final_count"][domain] = 2
+    else:
+        # otherwise put it in the initial count
+        domains_dict["all"].add(domain)
+    return domains_dict
+
+def clean_data(raw_data):
     """
         Returns a set of emails found in the given raw data.
 
@@ -87,68 +123,28 @@ def dist_emails_apr_logins(raw_data):
     """
     distinct_emails = set()
     april_logins = set()
+    domains = {
+        "all": set(),
+        "final_count": {}
+    }
     for login in raw_data:
         # Check that email exists, that it's formatted
         if login.get('email') and '@' and '.' in login.get('email'):
-            email = login['email']
+            # Remove trailing/leading whitespace from email
+            email = login['email'].strip()
 
             distinct_emails.add(email)
 
+            domains = count_domain(email, domains)
+
             if in_april(login):
                 april_logins.add(email)
-    # Returned as a list for easier manipulation elsewhere
+
     return {
         "distinct_emails": list(distinct_emails),
+        "user_domain_counts": domains["final_count"],
         "april_logins": list(april_logins)
         }
-
-def domain_counts(distinct_emails):
-    """
-        Determines the number of users from domains which have more than one
-        user logging in.
-
-        Iterates over each email address and determines the number of times each
-        unique domain appears in the iterable. If this amount is greater than one,
-        it is added to a final_counts dictionary and returned.
-
-        This is done separately from/after the above function because it is a
-        bit more efficient to wait until all unique users are pulled out of the
-        larger set of data. Since we want to see the number of users associated
-        with a given domain, not the number of logins, we would have to check
-        to see if the user had already been put into the set in
-        dist_emails_apr_logins for each login which would mean traversing the
-        distinct_emails set for every login checked. This way, we just have to
-        iterate through the pared-down data one time. If, however, we wanted to
-        see how many total logins are associated with a given domain, it would
-        be very easy to implement the same method in the dist_emails_apr_logins
-        function as is implemented here.
-
-        Assumptions:
-            Given list or set contains only unique emails.
-            Emails in given list are in the standard email address format
-                (username@domain.com, user.name@subdomain.domain.com)
-
-        Return Format:
-            {
-                'domain.com': int,
-                'gmail.com': 17
-            }
-    """
-    domain_counts = {}
-    final_count = {}
-    for email in distinct_emails:
-        domain = email.split('@')[-1]
-        if final_count.get(domain):
-            # if domain is already in the final, increment it
-            final_count[domain] += 1
-        elif domain_counts.get(domain):
-            # if this is the second time seeing the domain, put it in final_count
-            final_count[domain] = domain_counts[domain]
-        else:
-            # otherwise put it in the initial count
-            domain_counts[domain] = 1
-
-    return final_count
 
 def main():
     """
@@ -172,13 +168,8 @@ def main():
 
     print('Data received. Cleaning emails, counting domains, and checking who logged in in April...')
 
-    emails_and_logins = dist_emails_apr_logins(data)
-    cleaned_data = {
-        "your_email_address": "jessereitz1@gmail.com",
-        "unique_emails": emails_and_logins['distinct_emails'],
-        "user_domain_counts": domain_counts(emails_and_logins['distinct_emails']),
-        "april_emails": emails_and_logins['april_logins']
-    }
+    cleaned_data = clean_data(data)
+    cleaned_data["your_email_address"] = "jessereitz1@gmail.com"
 
     print('Done.')
     print('Posting data to API...')
