@@ -1,39 +1,19 @@
-"""
-    Ordoro ETL
-
-    Goal - GET data from given API then POST it back in specified form.
-        1. List of distinct email addresses
-        2. # of users per domain if domain has more than 1 user
-        3. Email of users who signed in during April
-
-    Given:
-    {
-        "data": [
-            {"email": "email@email.com", "login_date": "2014-04-10T11:22:33+00:00"},
-        ]
-    }
-
-    Expected:
-    {
-        "your_email_address": "jessereitz1@gmail.com",
-        "unique_emails": ["email1@test.com", "email2@test.com"],
-      "user_domain_counts": {
-          "bing.com": 2,
-          "sling.com": 3
-      },
-      "april_emails": ["email1@test.com", "email2@test.com"]
-  }
-"""
 import json
 import arrow
 import requests
 
 API_URL = 'https://us-central1-marcy-playground.cloudfunctions.net/ordoroCodingTest'
+MY_EMAIL = 'jessereitz1@gmail.com'
 
 def get_data():
     raw_data = requests.get(API_URL)
-    data = raw_data.json()['data']
-    return data
+    return raw_data.json()['data']
+
+def post_data(raw_dict):
+    json_dump = json.dumps(raw_dict)
+    headers = { 'Content-Type': 'application/json' }
+    r = requests.post(API_URL, headers=headers, data=json_dump)
+    return r
 
 def distinct_emails(raw_data):
     """
@@ -115,9 +95,11 @@ def april_logins(raw_data):
 def main():
     data = get_data()
     unique_emails = distinct_emails(data)
-    return json.dumps({
+    cleaned_data = {
         "your_email_address": "jessereitz1@gmail.com",
         "unique_emails": unique_emails,
         "user_domain_counts": domain_counts(unique_emails),
         "april_emails": april_logins(data)
-    })
+    }
+    r = post_data(cleaned_data)
+    return r
