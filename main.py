@@ -24,15 +24,18 @@
       "april_emails": ["email1@test.com", "email2@test.com"]
   }
 """
-
+import json
+import arrow
 import requests
 
-def get_cleaned_data():
-    raw_data = requests.get('https://us-central1-marcy-playground.cloudfunctions.net/ordoroCodingTest')
+API_URL = 'https://us-central1-marcy-playground.cloudfunctions.net/ordoroCodingTest'
+
+def get_data():
+    raw_data = requests.get(API_URL)
     data = raw_data.json()['data']
     return data
 
-def distinct(raw_data):
+def distinct_emails(raw_data):
     """
         Returns a set of emails found in the given raw data.
 
@@ -47,12 +50,15 @@ def distinct(raw_data):
                     'email': 'email@domain.com'
                 }
             If email does not contain '@' or at least one '.', dict is discarded
+
+        Return Format:
+            {'email@email.com', 'email2@email2.com'}
     """
     distinct_emails = set()
     for dict in raw_data:
         if dict.get('email') and '@' and '.' in dict.get('email'):
             distinct_emails.add(dict['email'])
-    return distinct_emails
+    return list(distinct_emails)
 
 def domain_counts(distinct_emails):
     """
@@ -60,7 +66,7 @@ def domain_counts(distinct_emails):
         user logging in.
 
         Iterates over each email address and determines the number of times each
-        unique domain appears in the list. If this amount is greater than one,
+        unique domain appears in the iterable. If this amount is greater than one,
         it is added to a final_counts dictionary and returned.
 
         Assumptions:
@@ -74,7 +80,6 @@ def domain_counts(distinct_emails):
                 'gmail.com': 17
             }
     """
-    # runtime of O(n)
     domain_counts = {}
     final_count = {}
     for email in distinct_emails:
@@ -91,7 +96,28 @@ def domain_counts(distinct_emails):
 
     return final_count
 
+def april_logins(raw_data):
+    """
+        Iterates over given list of dicts, converts and normalizes dates to UTC,
+        returns all login dates in April.
+    """
+    datestr = '%Y-%m-%dT%H:%M:%S%z'
+    apr_login = []
+    for login in raw_data:
+        try:
+            dt = arrow.get(login.get('login_date'))
+            if dt.month == 4:
+                apr_login.append(login)
+        except:
+            print('uh oh')
+    return distinct_emails(apr_login)
 
 def main():
-    raw_data = requests.get('https://us-central1-marcy-playground.cloudfunctions.net/ordoroCodingTest')
-    data = raw_data.json()['data']
+    data = get_data()
+    unique_emails = distinct_emails(data)
+    return json.dumps({
+        "your_email_address": "jessereitz1@gmail.com",
+        "unique_emails": unique_emails,
+        "user_domain_counts": domain_counts(unique_emails),
+        "april_emails": april_logins(data)
+    })
