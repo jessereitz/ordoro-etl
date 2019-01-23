@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+# Easily run the program for the Ordoro ETL code test with a single command
+
+source ./venv/bin/activate
+python main.py
+deactivate

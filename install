@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+# Automatically install all dependencies for my program for the Ordoro ETL code
+# test
+
+python3 -m virtualenv venv &&
+source ./venv/bin/activate &&
+pip install -r requirements.txt &&
+deactivate
+echo "Installation complete."
