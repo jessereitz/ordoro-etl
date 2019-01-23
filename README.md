@@ -18,7 +18,8 @@ main()
 ```
 
 *The automated installation process assumes you are operating on a Unix-like
-machine with Python3 and Virtualenv already installed.*
+machine with Python3 and Virtualenv already installed. This has been tested on
+Linux (Ubuntu 18.04) and Mac OS (10.14).*
 
 ## Libraries Used
 * [json](https://docs.python.org/3.6/library/json.html) - Built-in Python library for manipulating JSON data. Used to convert
