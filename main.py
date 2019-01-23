@@ -8,6 +8,10 @@ MY_EMAIL = 'jessereitz1@gmail.com'
 def get_data():
     """
         Get the JSON data from the designated API endpoint.
+
+        Return Format:
+            [Login]: returns a list of logins converted to Python dicts from the
+                API.
     """
     raw_data = requests.get(API_URL)
     return raw_data.json()['data']
@@ -16,7 +20,9 @@ def post_data(cleaned_dict):
     """
         Post the cleaned data to the designated endpoint.
 
-        If successful, returns None. If not, an exception is raised.
+        Return Format:
+            None | Excaption : Returns None if successful. Else raises an
+                Exception.
     """
     final_json = json.dumps(cleaned_dict)
     headers = { 'Content-Type': 'application/json' }
@@ -32,13 +38,37 @@ def post_data(cleaned_dict):
     return r
     return None
 
-def distinct_emails(raw_data):
+def in_april(login):
+    """
+        Checks if given login is in April. Uses the arrow library to convert the
+        given ISO-8601 time string to a Python datetime object, then normalize
+        it to UTC.
+
+        Return Format:
+            boolean: True if in April. Else False.
+    """
+    try:
+        dt = arrow.get(login.get('login_date')).to('utc')
+    except Exception as e:
+        return False
+    return dt.month == 4
+
+
+def dist_emails_apr_logins(raw_data):
     """
         Returns a set of emails found in the given raw data.
 
         Iterates over given raw_data of format {'email': 'email@email.com',
-        'login_date': 'login date'} and places them in a set. If any given dict does not contain a field 'email' with a
-        reasonably valid email address, it is discarded.
+        'login_date': 'login date'} and each in a distinct_emails set. Because
+        sets allow only unique objects, duplicate emails are sorted out
+        automatically. If any given dict does not contain a field
+        'email' with a reasonably valid email address, it is discarded.
+
+        Each login is then checked to see if it was in April. If
+        it was, then that login's user's email address is added to the
+        april_logins set. Again, a set is used to avoid showing the same user
+        twice (we just want to know if they logged in during April, not how many
+        times they did so, else we could just use a list).
 
         Assumptions:
             raw_data is list of dictionaries of format:
@@ -49,13 +79,28 @@ def distinct_emails(raw_data):
             If email does not contain '@' or at least one '.', dict is discarded
 
         Return Format:
-            {'email@email.com', 'email2@email2.com'}
+            Distinct emails and April logins are returned as lists inside a dict.
+            {
+                'distinct_emails': ['email@email.com', 'email2@email2.com']
+                'apil_logins': ['email@email.com', 'email2@email2.com']
+            }
     """
     distinct_emails = set()
-    for dict in raw_data:
-        if dict.get('email') and '@' and '.' in dict.get('email'):
-            distinct_emails.add(dict['email'])
-    return list(distinct_emails)
+    april_logins = set()
+    for login in raw_data:
+        # Check that email exists, that it's formatted
+        if login.get('email') and '@' and '.' in login.get('email'):
+            email = login['email']
+
+            distinct_emails.add(email)
+
+            if in_april(login):
+                april_logins.add(email)
+    # Returned as a list for easier manipulation elsewhere
+    return {
+        "distinct_emails": list(distinct_emails),
+        "april_logins": list(april_logins)
+        }
 
 def domain_counts(distinct_emails):
     """
@@ -65,6 +110,18 @@ def domain_counts(distinct_emails):
         Iterates over each email address and determines the number of times each
         unique domain appears in the iterable. If this amount is greater than one,
         it is added to a final_counts dictionary and returned.
+
+        This is done separately from/after the above function because it is a
+        bit more efficient to wait until all unique users are pulled out of the
+        larger set of data. Since we want to see the number of users associated
+        with a given domain, not the number of logins, we would have to check
+        to see if the user had already been put into the set in
+        dist_emails_apr_logins for each login which would mean traversing the
+        distinct_emails set for every login checked. This way, we just have to
+        iterate through the pared-down data one time. If, however, we wanted to
+        see how many total logins are associated with a given domain, it would
+        be very easy to implement the same method in the dist_emails_apr_logins
+        function as is implemented here.
 
         Assumptions:
             Given list or set contains only unique emails.
@@ -93,24 +150,6 @@ def domain_counts(distinct_emails):
 
     return final_count
 
-def april_logins(raw_data):
-    """
-        Iterates over given list of dicts, converts and normalizes dates to UTC,
-        returns all login dates in April.
-    """
-    datestr = '%Y-%m-%dT%H:%M:%S%z'
-    apr_login = []
-    for login in raw_data:
-        try:
-            # try to get the date, see if it's in April, and save it
-            dt = arrow.get(login.get('login_date'))
-            if dt.month == 4:
-                apr_login.append(login)
-        except:
-            # if there is no associated date, pass over the login
-            pass
-    return distinct_emails(apr_login)
-
 def main():
     """
         Gets data, cleans it, and returns it to the API in the format:
@@ -124,7 +163,8 @@ def main():
                 "april_emails": ["email1@email.com", "email2@email.com"]
             }
 
-        If successful, exits with 0. Otherwise exits with 1.
+        Return Format:
+            0 | 1: If successful, exits with 0. Otherwise exits with 1.
     """
     print('Requesting JSON data...')
 
@@ -132,12 +172,12 @@ def main():
 
     print('Data received. Cleaning emails, counting domains, and checking who logged in in April...')
 
-    unique_emails = distinct_emails(data)
+    emails_and_logins = dist_emails_apr_logins(data)
     cleaned_data = {
         "your_email_address": "jessereitz1@gmail.com",
-        "unique_emails": unique_emails,
-        "user_domain_counts": domain_counts(unique_emails),
-        "april_emails": april_logins(data)
+        "unique_emails": emails_and_logins['distinct_emails'],
+        "user_domain_counts": domain_counts(emails_and_logins['distinct_emails']),
+        "april_emails": emails_and_logins['april_logins']
     }
 
     print('Done.')
@@ -155,4 +195,5 @@ def main():
 
 
 if __name__ == '__main__':
+    # If called directly, run main.
     main()
