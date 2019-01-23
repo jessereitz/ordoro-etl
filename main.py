@@ -37,8 +37,7 @@ def distinct(raw_data):
         Returns a set of emails found in the given raw data.
 
         Iterates over given raw_data of format {'email': 'email@email.com',
-        'login_date': 'login date'} and places them in a set using set
-        comprehension. If any given dict does not contain a field 'email' with a
+        'login_date': 'login date'} and places them in a set. If any given dict does not contain a field 'email' with a
         reasonably valid email address, it is discarded.
 
         Assumptions:
@@ -49,8 +48,11 @@ def distinct(raw_data):
                 }
             If email does not contain '@' or at least one '.', dict is discarded
     """
-    return {dict['email'] for dict in raw_data if dict.get('email') and '@' and '.' in dict.get('email')}
-
+    distinct_emails = set()
+    for dict in raw_data:
+        if dict.get('email') and '@' and '.' in dict.get('email'):
+            distinct_emails.add(dict['email'])
+    return distinct_emails
 
 def domain_counts(distinct_emails):
     """
