@@ -90,7 +90,7 @@ def dist_emails_apr_logins(raw_data):
     for login in raw_data:
         # Check that email exists, that it's formatted
         if login.get('email') and '@' and '.' in login.get('email'):
-            email = login['email']
+            email = login['email'].strip()
 
             distinct_emails.add(email)
 
@@ -143,7 +143,7 @@ def domain_counts(distinct_emails):
             final_count[domain] += 1
         elif domain_counts.get(domain):
             # if this is the second time seeing the domain, put it in final_count
-            final_count[domain] = domain_counts[domain]
+            final_count[domain] = domain_counts[domain] + 1
         else:
             # otherwise put it in the initial count
             domain_counts[domain] = 1
