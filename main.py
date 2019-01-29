@@ -36,7 +36,6 @@ def post_data(cleaned_dict):
         # check for complete fail or lack of JSON response
         raise Exception('Post to API failed. JSON response is printed below: \n' + str(r.json()))
     return r
-    return None
 
 def in_april(login):
     """
